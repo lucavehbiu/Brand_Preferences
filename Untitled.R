@@ -45,3 +45,6 @@ l1 <- ggplot(l, aes(salary, fill = brand)) +
 l1
 
 
+
+print("ulalalal")
+
