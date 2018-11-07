@@ -1,0 +1,414 @@
+---
+title: Blackwell - Brand Preference
+date: 7/11/2018
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: yes
+    theme: united
+    highlight: tango
+    fig_width: 7
+    fig_height: 6
+    code_folding: hide
+---
+<div class="jumbotron">
+  <h1>Deepening Customer Relationships</h1>
+  <p>Luca Vehbiu </p>
+  
+  </div>
+  
+#**Executive summary**
+
+This report tries to understand what affects Blackwell's customer attitude towards a certain brand. In this case *Sony* and *Acer* brands were compared between each other. By using a set of attributes such as income, zipcode what car someone uses etc. Blackwell's marketing and sales team can enhance their work and be more efficient in their commercial scope. Furthermore, findings from this report could be replicated for different brands of different products and the qualities of a certain most-preferred brand can serve as a reference for the future. 
+
+
+#**Import datasets** {.tabset .tabset-fade .tabset-pills}
+
+## Complete Survey
+```{r, message=FALSE}
+
+library(readxl)
+library(dplyr)
+library(ggplot2)
+
+data <- read_xlsx("/Users/Luca/Desktop/thefile.xlsx", sheet = 2)
+data$elevel <- as.factor(data$elevel)
+data$car <- as.factor(data$car)
+data$zipcode <- as.factor(data$zipcode)
+data$brand <- as.factor(data$brand)
+glimpse(data)
+```
+
+## Incomplete Survey
+```{r}
+#Import the incomplete survey
+thedata <- read.csv("/Users/Luca/Desktop/SurveyIncomplete.csv")
+thedata$elevel <- as.factor(thedata$elevel)
+thedata$car <- as.factor(thedata$car)
+thedata$zipcode <- as.factor(thedata$zipcode)
+thedata$brand <- as.factor(thedata$brand)
+
+glimpse(thedata)
+
+```
+
+#**Pre-process** {.tabset .tabset-fade .tabset-pills}
+
+Checking the distribution of the populations of our variables, one interesting insight arises. All of our variables seem to have a heavy-tailed S-shape distribution. Given that our main predictor is **salary** more in-depth analyses was done on it. What seems to cause the heavy-tails in this case is the frequency of extreme observations on both sides. After removing them the distribution of salary gained a more regular shape. Moreover, on both datasets 'extremities' made up only a small proportion of the datasets **(2.5%)**, thus not comprimising the validity of our models.
+
+## With extreme values
+```{r, warning=FALSE, message=FALSE}
+
+new <- data %>%
+  filter(salary> 20000 & salary < 150000)
+
+
+
+
+#remove extremities from incomplete survey
+new_thedata <- thedata %>%
+  filter(salary> 20000 & salary < 150000)
+
+
+q1<- qqnorm(data$salary, main = "Salary, Population Distribution")
+```
+
+## Without extreme values
+```{r, warning=FALSE, message=FALSE}
+
+q2 <- qqnorm(new$salary, main = "Salary, Population Distirbution - No extremities")
+
+```
+
+
+
+#**Data exploration** 
+
+##Salary and Brand choice
+
+First of all a quick look at a bar graph for telling which is preferred the better, numbers show that *Sony* is chosen 40% more than *Acer*
+The histogram that checks the distribution of salaries for each brand shows some interesting insights. People seem to prefer *Acer* for a mid-salary range of [55,000: 100,000$]. The edges of salaries' range belong to people preferring *Sony* brand. In other words people think that *Sony* makes good cheap and expensive products while *Acer* is thought to make good products for a decent amount of money.
+
+```{r ,warning=FALSE, message=FALSE, fig.width= 9, fig.height= 7}
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+
+
+l <- data %>% group_by(brand, salary, credit, age, elevel, zipcode, car) %>% tally() #sony is almost doubly preferred
+
+l2 <- ggplot(l, aes(brand, fill = brand)) +
+  geom_bar() +
+  labs(title = "Acer or Sony", x = "Brand", y = "Count")
+
+l2 <- l2 + scale_fill_manual(values=c("#ED45E8", "#16823F")) + guides(fill = FALSE)
+
+l1 <- ggplot(new, aes(salary, fill = brand)) +
+   geom_density(kernel = "gaussian") +
+   labs(title = "Salary Density Distribution", x = "Salary", y = "Density") + scale_fill_discrete(name = "Brand", labels = c("Acer", "Sony"))
+
+l1 <- l1 + scale_fill_manual(labels = c("Acer", "Sony"), values=c("#ED45E8", "#16823F")) + guides(fill = guide_legend("Brand"))
+
+grid.arrange(l2, l1)
+```
+
+For a better overview of salaries, some statistical results are presented below. The biggest difference betwee the salaries of each brand's lover is their IQR. Half of *Sony*'s lovers have more than double the salary of half of *Acer*'s lovers. The minimum range is the same while for the maximum, *Sony*'s lovers earn an extra 20k.
+
+
+##Credit and brand choice
+
+To see if the variable **credit** showed any correlation or similar pattern as salary did similar graphics were plotted. Checking the density distribution of **credit** for each brand preference showed a costant distribution over time and similar for both brands. The scatter plot between *credit* and the main good-looking predictor so far *salary* showed that their relationship was all over the place with a slight downward trend as salary got bigger. Thus, credit does not seem to hold much predictive power with regards to our future predictions. 
+
+```{r fig.width=9, fig.height = 7, warning=FALSE, message=FALSE}
+l3 <- ggplot(l, aes(salary,credit)) +
+  geom_point() + geom_smooth(method = "lm") +
+  labs(title = "Relationship of Credit and Salary", x = "Salary", y = "Credit")
+
+l4 <- ggplot(l, aes(credit, fill = brand)) +
+    geom_density(kernel = "gaussian") +
+    labs(title = "Credit Density Distribution", x = "Credit", y = "Count") 
+    
+
+l4 <- l4 + scale_fill_manual(labels = c("Acer", "Sony"), values=c("#ED45E8", "#16823F")) + guides(fill = guide_legend(title = "Brand"))
+
+grid.arrange(l4, l3)
+```
+
+##Education Level, Zipcode, Car, Age and Brand Choice
+
+As one would think, a customer's education level should influence the way they decide and why they decide a certain brand over an other. Looking at the density for each education level, *Sony*'s lovers are slightly more educated. The average level of education for customers choosing both brands seems to be *Some college*. This observation throws some doubt onto whether education level can explain brand choice. To get a better sense of it, a violing graph was plotted for education level against salary, the best looking predictor so far.
+
+```{r warning=FALSE, message=FALSE, fig.width=11, fig.height=8}
+e2 <- ggplot(l, aes(elevel, fill = brand)) +
+       geom_density(kernel = "gaussian") +
+       scale_fill_discrete(name = "Brand", labels = c("Acer", "Sony")) +
+       labs(title = "Education Level Density Distribution", x = "Education Level", y = "Count")
+
+e2 <- e2 + scale_fill_manual(labels = c("Acer", "Sony"),values=c("#ED45E8", "#16823F")) + 
+  guides(fill=guide_legend(title = "Brand")) +
+  theme(legend.background = element_rect(fill="lightblue", size=0.5, linetype="solid"), legend.position = c(0.7, 0.8))
+
+e3  <- ggplot(l, aes(zipcode, fill = brand)) +
+            geom_histogram(stat = "count") +
+            scale_fill_discrete(name = "Brand", labels = c("Acer", "Sony")) +
+            labs(title = "Location distribution", x = "Zipcode", y = "Count")
+e3 <- e3 + scale_fill_manual(values=c("#ED45E8", "#16823F")) + guides(fill = FALSE)
+
+e1 <- ggplot(l, aes(car, fill = brand)) +
+      geom_histogram(stat = "count") +
+      scale_fill_discrete(name = "Brand", labels = c("Acer", "Sony")) +
+      labs(title = "Car Distribution", x = "Car model", y = "Count")
+e1 <- e1 + scale_fill_manual(values=c("#ED45E8", "#16823F")) + guides(fill=FALSE)
+
+e4 <- ggplot(l, aes(age, fill = brand)) +
+      geom_histogram() +
+      scale_fill_discrete(name = "Brand", labels = c("Acer", "Sony")) +
+      labs(title = "Age Distribution", x = "Age groups", y = "Count")
+
+e4 <- e4 + scale_fill_manual(values=c("#ED45E8", "#16823F")) + guides(fill=FALSE)
+
+grid.arrange(e1, e2, e3, e4)
+```
+
+As doubted, education does not seem to influence the brand choice even when checking for age and salary. Distributions are almost identical across education levels. As mentioned above people with mid-range salaries tend to prefer **Acer** and the rest **Sony**. Moreover, *zipcode*, *age* and *car* similar to *elevel* do not show any particular pattern that could help explaining brand choice.
+
+
+#Model Selection
+
+##K-nn algorithm results
+
+As the observations from the graphs suggested, the only decent metrics came when clustering brand preferences through salary which was much better than when all the variables were included. The numbers show that there is room for improvement and some variables might have been left out of the model. Thus, an iterative process of clustering **brand** was done based on **salary** combined with one or a subset of the other variables.
+
+```{r, message= FALSE, cache=TRUE, fig.width=11, fig.height=7, warning=FALSE}
+library(forcats)
+library(dplyr)
+library(car)
+library(caret)
+library(ggplot2)
+library(e1071)
+
+#split the data into training and testing set
+set.seed(3000)
+trainSize <- createDataPartition(y = new$brand, p = 0.75, list = FALSE)
+training <- new[trainSize,]
+test <- new[-trainSize,]
+
+#choose the cross-validation mode
+trctrl <- trainControl(method = "repeatedcv", number = 5, repeats = 2)
+set.seed(100)
+
+#k-nn without age
+knn_fit1 <- train(brand~ salary, data = training, method = "knn",
+  trControl = trctrl,
+  preProcess= c("center", "scale"),
+  tuneLength = 10)
+
+test_pred <- predict(knn_fit1, newdata = test)                
+            
+no_age <- confusionMatrix(test_pred, test$brand)
+confusion_matrix <- as.data.frame(table(test_pred, test$brand))
+
+z <- ggplot(data = confusion_matrix,
+       mapping = aes(x = test_pred,
+                     y = confusion_matrix$Var2)) +
+      geom_tile(aes(fill = Freq)) +
+      geom_text(aes(label = sprintf("%1.0f", Freq)), vjust = 1) +
+      scale_fill_gradient(low = "lightblue",
+                      high = "orange",
+                      trans = "log") +
+      labs( title = "Confusion Matrix - k-NN (only salary)", x = "Predictions", y = "Actual Values") +
+      theme(legend.position = "none")
+
+
+#k-nn including age
+set.seed(100)
+kgrid <- expand.grid(k = c(1:60))
+
+knn_fit <- train(brand~ salary + age, data = training, method = "knn",
+  trControl = trctrl,
+  preProcess= c("center", "scale"),
+  tuneLength = 10,
+  tuneGrid = kgrid)
+
+#best k was 42
+test_pred <- predict(knn_fit, newdata = test) 
+
+with_age <- confusionMatrix(test_pred, test$brand)
+
+confusion_matrix <- as.data.frame(table(test_pred, test$brand))
+
+u <- ggplot(data = confusion_matrix,
+       mapping = aes(x = test_pred,
+                     y = confusion_matrix$Var2)) +
+      geom_tile(aes(fill = Freq)) +
+      geom_text(aes(label = sprintf("%1.0f", Freq)), vjust = 1) +
+      scale_fill_gradient(low = "lightblue",
+                      high = "orange",
+                      trans = "log") +
+      labs( title = "Confusion Matrix - k-NN (including age)", x = "Predictions", y = "Actual Values") +
+      theme(legend.position = "none")
+grid.arrange(z,u, ncol = 2)
+```
+
+After a process of iteration, when including *age* in the model it diminished the present randomness by 50%. Thus, *age* should be included in the final model. The other variables did not seem to contribute enough to the model's validity. To better understand the explosion in the improvement of the metrics, *age* will be plotted against salary for each brand to grasp the pattern between them.
+
+```{r, fig.width=11, fig.height=7, warning=FALSE, message=FALSE}
+#plotting age, salary and brand
+
+q <- ggplot(new, aes(salary, age, color = brand)) +
+    geom_point() +
+  labs(title = "Salary vs Age in Brand Choice", x = "Salary", y = "Age groups") +
+  scale_fill_manual(labels = c("Acer", "Sony")) +
+  theme(legend.background = element_rect(fill="lightblue", size=0.5, linetype="solid"))
+
+    
+n <-  ggplot(new, aes(salary, age, color = brand)) +
+      geom_point() +
+      geom_smooth(method = "lm", color = "black") +
+      facet_grid(brand~.) + theme(legend.position = 'none')
+
+grid.arrange(q, n, ncol = 2)
+```
+
+As it can be seen above, the pattern is much more clearer now. Customers from 20 to 40 years old prefer *Acer* if they earn a mid-range salary (48k - 100k) while the rest in this age group prefers *Sony*. Customers from 40 to 60 years old prefer *Acer* if they earn a mid-to-high-range salary (80k - 125k) while the rest prefers *Sony*. For the last age group, the upward trend for *Acer* lovers is broken because they earn 20-90k. The rest (for this age group -> 60-80 years old) prefers *Sony*. 
+
+In other words *Sony* lovers show a mild upward trend while *Acer* lovers show a steep downward trend (checking for their age and salary).
+
+
+
+
+##Random Forest
+
+```{r, cache=TRUE, warning=FALSE, message=FALSE, fig.width=7, fig.height=7}
+library(parallel)
+library(doParallel)
+
+#calculate number of cores
+no_cores <- detectCores() - 1
+
+#initiate cluster
+cl<- makeCluster(no_cores)
+registerDoParallel(cl)
+
+
+trainSize <- createDataPartition(y = new$brand, p = 0.75, list = FALSE)
+training <- new[trainSize,]
+test <- new[-trainSize,]
+
+
+rf <- train(brand~ ., method = "rf",
+            data = training,
+            trControl = trainControl(method = "cv", number = 5),
+            prox = TRUE, allowParallel = TRUE)
+
+test_pred <- predict(rf,  newdata = test)
+
+
+stopCluster(cl)
+registerDoSEQ()
+
+
+#plotting down the confusion matrix
+confusion_matrix <- as.data.frame(table(test_pred, test$brand))
+
+d <- ggplot(data = confusion_matrix,
+       mapping = aes(x = test_pred,
+                     y = confusion_matrix$Var2)) +
+      geom_tile(aes(fill = Freq)) +
+      geom_text(aes(label = sprintf("%1.0f", Freq)), vjust = 1) +
+      scale_fill_gradient(low = "blue",
+                      high = "red",
+                      trans = "log") +
+      labs( title = "Confusion Matrix - Random Forest", x = "Predictions", y = "Actual Values") +
+      theme(legend.position = "none")
+d
+
+```
+
+##GBM & SVM - Machine learning bench
+
+In order to choose the best model for this task, SVM and GBM were tested as well. Below is a summary of how well they performed in terms of accuracy and randomness.
+
+```{r, cache= TRUE, fig.width=11, fig.height=8, warning=FALSE, message=FALSE }
+library(mlbench)
+
+# train the GBM model
+set.seed(100)
+modelGbm <- train(brand~ salary + age, data= new, method="gbm", trControl= trctrl, verbose=FALSE, preProcess= c("center", "scale"),
+                  tuneLength = 10)
+# train the SVM model
+set.seed(100)
+modelSvm <- train(brand~ salary + age, data= new, method="svmRadial", trControl= trctrl, preProcess= c("center", "scale"),
+                  tuneLength = 10)
+# collect resamples
+results <- resamples(list("k-NN"= knn_fit, GBM=modelGbm, SVM=modelSvm))
+# boxplots of results
+bwplot(results)
+
+test_pred <- predict(modelSvm,  newdata = test)
+confusion_matrix <- as.data.frame(table(test_pred, test$brand))
+
+#confusion matrix for svm
+s <- ggplot(data = confusion_matrix,
+       mapping = aes(x = test_pred,
+                     y = confusion_matrix$Var2)) +
+      geom_tile(aes(fill = Freq)) +
+      geom_text(aes(label = sprintf("%1.0f", Freq)), vjust = 1) +
+      scale_fill_gradient(low = "blue",
+                      high = "red",
+                      trans = "log") +
+      labs( title = "Confusion Matrix - SVM", x = "Predictions", y = "Actual Values") +
+      theme(legend.position = "none")
+
+
+#confusion matrix for gbm
+test_pred <- predict(modelGbm,  newdata = test)
+confusion_matrix <- as.data.frame(table(test_pred, test$brand))
+
+
+
+
+g <- ggplot(data = confusion_matrix,
+       mapping = aes(x = test_pred,
+                     y = confusion_matrix$Var2)) +
+      geom_tile(aes(fill = Freq)) +
+      geom_text(aes(label = sprintf("%1.0f", Freq)), vjust = 1) +
+      scale_fill_gradient(low = "blue",
+                      high = "red",
+                      trans = "log") +
+      labs( title = "Confusion Matrix - GBM", x = "Predictions", y = "Actual Values") +
+      theme(legend.position = "none")
+
+
+grid.arrange(u, s, g, d)
+
+```
+
+The accuracy and the kappa coefficient was similar across all models, thus how they perform on predicting each brand will be the decisive factor as to which model to procede with. The only pre-processing that was done is normalizing the population so that it has a mean of 1 and a standard deviation of 0. To add to it, no tuning was done to the models beside the automatic ones because it did not seem to make a significant difference.
+In this case (brand preference) I think it is more important to minimize the False Positives and maximize the True Positive. In other words, it is better to correctly predict which brand customers choose even if that means less brand preference predictions overall.
+
+Choosing GBM as a upper threshold to prevent from overfitting, the best model turns out to be the **Support Vector Machine** (slightly better than Random Forest). SVM did better at predicting *Acer* lovers and for such relatively small dataset and no outliers at all, SVM was chosen for predictions.
+
+#Predictions 
+
+The graph below shows how the brand preferences are distributed. Similar to the Complete Survey, 38% of the customers chose *Acer* and the rest chose *Sony*.
+
+```{r, warning=FALSE}
+pred <- predict(modelSvm,  newdata = new_thedata)
+
+f <- ggplot(new_thedata, aes(pred, fill = pred)) +
+  geom_histogram(stat = "count") +
+  labs(title = "Brand Preference Predictions - SVM", x = "Predictions", y = "Count") +
+  scale_fill_manual(labels = c("Acer", "Sony"), values = c("#E6B61C", "#940FD6")) +
+  guides(fill = guide_legend(title = "Brand")) +
+  theme(legend.position = c(0.09, 0.9), legend.background = element_rect("lightblue"))
+
+f
+
+```
+
+#Conclusion
+
+The findings from this report have a high confidence level of accuracy and reliability for taking action in the future. By maximizing the True Positives it would help the sales and marketing team to focus their commercial efforts and reduce costs(time & budget). Beside smoothing internal operations this would also allow Blackwell to pursue deeper and more meaningful customer relationships which would increase a customer's lifetime value for the company and increase profits in the long run. Future recommendations for better brand predictions would include: a higher number of surveyed people and a more extensive list of attributes to profile customers even better.
+
