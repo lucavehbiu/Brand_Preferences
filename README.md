@@ -4,3 +4,5 @@
 - Feature engineering
 - Pattern discovery
 - Machine learning
+
+Finding the most preferred brand for an electronics retailer company (Blackwell)
