@@ -6,3 +6,5 @@
 - Machine learning for model building
 
 Finding the most preferred brand for an electronics retailer company (Blackwell)
+
+### Read html file for results
